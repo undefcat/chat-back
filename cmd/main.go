@@ -30,6 +30,20 @@ func main() {
 
 	go command()
 
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// 메인 페이지 이외에 바로 채팅방에는 못들어가게 한다.
+		if r.URL.Path != "/" {
+			http.Error(w, "Not Found", http.StatusNotFound)
+			return
+		}
+
+		http.ServeFile(w, r, "index.html")
+	})
+
+	http.HandleFunc("/bundle.js", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "bundle.js")
+	})
+
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWS(s, w, r)
 	})
