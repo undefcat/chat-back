@@ -3,8 +3,13 @@ package payload
 // 최초 접속후 닉네임 설정
 const TypeSetName = "setName"
 
-type SetName struct {
+type SetNameRequest struct {
 	Name string `json:"name"`
+}
+
+type SetNameResponse struct {
+	Type string `json:"type"`
+	OK   bool   `json:"ok"`
 }
 
 // 채팅방 접속 요청

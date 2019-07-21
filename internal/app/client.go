@@ -75,8 +75,6 @@ func (it *Client) request() {
 				return
 			}
 
-			log.Println("name: ", it.Name)
-
 		case payload.TypeCreateRoom:
 			err := it.handleCreateRoom(message)
 			if err != nil {
@@ -118,6 +116,12 @@ func (it *Client) listen() {
 			}
 
 			switch msg.(type) {
+			case *payload.SetNameResponse:
+				err := it.handleSetNamePush(msg.(*payload.SetNameResponse))
+				if err != nil {
+					return
+				}
+
 			case *payload.RoomList:
 				err := it.handleRoomListPush(msg.(*payload.RoomList))
 				if err != nil {
@@ -151,7 +155,7 @@ func (it *Client) handleRoomListPush(msg *payload.RoomList) error {
 
 	err := it.Conn.WriteJSON(msg)
 	if err != nil {
-		log.Println("WriteJSON: ", err)
+		log.Println("handleRoomListPush: ", err)
 		return err
 	}
 
@@ -159,7 +163,7 @@ func (it *Client) handleRoomListPush(msg *payload.RoomList) error {
 }
 
 func (it *Client) handleSetName(msg []byte) error {
-	var setName payload.SetName
+	var setName payload.SetNameRequest
 
 	err := json.Unmarshal(msg, &setName)
 	if err != nil {
@@ -168,9 +172,22 @@ func (it *Client) handleSetName(msg []byte) error {
 	}
 
 	it.Name = setName.Name
+	it.Send <-&payload.SetNameResponse{OK: true}
+
 	return nil
 }
 
+func (it *Client) handleSetNamePush(msg *payload.SetNameResponse) error {
+	msg.Type = payload.TypeSetName
+
+	err := it.Conn.WriteJSON(msg)
+	if err != nil {
+		log.Println("handleSetNamePush: ", err)
+		return err
+	}
+
+	return nil
+}
 func (it *Client) handleCreateRoom(msg []byte) error {
 	var room payload.CreateRoomRequest
 
