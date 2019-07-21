@@ -101,7 +101,14 @@ var sep = []byte{'\r', '\n', '\r', '\n'}
 func getMessage(m []byte) (string, []byte) {
 	split := bytes.Split(m, sep)
 
-	return string(split[0]), split[1]
+	messageType := string(split[0])
+	var body []byte
+
+	if len(split) > 1 {
+		body = split[1]
+	}
+
+	return messageType, body
 }
 
 // 서버로부터 데이터를 받아서 클라이언트로 푸쉬해준다.
