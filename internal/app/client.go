@@ -92,6 +92,10 @@ func (it *Client) request() {
 			if err != nil {
 				return
 			}
+
+		case payload.TypeLeaveRoom:
+			it.handleLeaveRoom()
+
 		}
 	}
 }
@@ -271,6 +275,11 @@ func (it *Client) handleUserListPush(msg *payload.ChatRoomUserList) error {
 	}
 
 	return nil
+}
+
+func (it *Client) handleLeaveRoom() {
+	it.Leave <-it
+	it.Server.Login <-it
 }
 
 func (it *Client) close() {
