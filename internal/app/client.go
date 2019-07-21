@@ -145,6 +145,12 @@ func (it *Client) listen() {
 					return
 				}
 
+			case *payload.NoticeMessage:
+				err := it.handleSendNoticeMessage(msg.(*payload.NoticeMessage))
+				if err != nil {
+					return
+				}
+
 			case *payload.JoinResponse:
 				err := it.handleJoinRoomPush(msg.(*payload.JoinResponse))
 				if err != nil {
@@ -234,6 +240,18 @@ func (it *Client) handleSendChatMessage(msg *payload.ChatMessage) error {
 	err := it.Conn.WriteJSON(msg)
 	if err != nil {
 		log.Println("handleSendChatMessage: ", err)
+		return err
+	}
+
+	return nil
+}
+
+func (it *Client) handleSendNoticeMessage(msg *payload.NoticeMessage) error {
+	msg.Type = payload.TypeNoticeMessage
+
+	err := it.Conn.WriteJSON(msg)
+	if err != nil {
+		log.Println("handleSendNoticeMessage: ", err)
 		return err
 	}
 

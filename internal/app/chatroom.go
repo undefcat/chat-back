@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -39,13 +40,13 @@ func (it *ChatRoom) Run() {
 	for {
 		select {
 		case msg := <-it.Broadcast:
-			it.handleBroadcastChatMessage(msg)
+			go it.handleBroadcastMessage(msg)
 
 		case enter := <-it.Enter:
-			it.In(enter)
+			go it.In(enter)
 
 		case c := <-it.Leave:
-			it.Out(c)
+			go it.Out(c)
 
 		case <-it.Closed:
 			return
@@ -64,6 +65,11 @@ func (it *ChatRoom) In(client *Client) {
 	client.Leave = it.Leave
 	client.Broadcast = it.Broadcast
 
+	it.Broadcast <-payload.NoticeMessage{
+		NoticeType: "enter",
+		Content: fmt.Sprintf("%s 님이 입장하셨습니다.", client.Name),
+	}
+
 	it.Current++
 	it.updateRoomStatus()
 }
@@ -71,6 +77,11 @@ func (it *ChatRoom) In(client *Client) {
 func (it *ChatRoom) Out(client *Client) {
 	it.Clients.Delete(client)
 	it.Current--
+
+	it.Broadcast <-payload.NoticeMessage{
+		NoticeType: "leave",
+		Content: fmt.Sprintf("%s 님이 나가셨습니다.", client.Name),
+	}
 
 	it.updateRoomStatus()
 }
@@ -80,10 +91,13 @@ func (it *ChatRoom) updateRoomStatus() {
 	it.Server.updateChatRoomStatus()
 }
 
-func (it *ChatRoom) handleBroadcastChatMessage(msg interface{}) {
+func (it *ChatRoom) handleBroadcastMessage(msg interface{}) {
 	switch msg.(type) {
 	case payload.ChatMessage:
 		it.broadcastChatMessage(msg.(payload.ChatMessage))
+
+	case payload.NoticeMessage:
+		it.broadcastNoticeMessage(msg.(payload.NoticeMessage))
 	}
 }
 
@@ -115,6 +129,18 @@ func (it *ChatRoom) getUserList() *payload.ChatRoomUserList {
 var chatID = 0
 
 func (it *ChatRoom) broadcastChatMessage(msg payload.ChatMessage) {
+	msg.ID = float64(chatID)
+	chatID++
+
+	it.Clients.Range(func(c, _ interface{}) bool {
+		client := c.(*Client)
+		client.Send <-&msg
+
+		return true
+	})
+}
+
+func (it *ChatRoom) broadcastNoticeMessage(msg payload.NoticeMessage) {
 	msg.ID = float64(chatID)
 	chatID++
 

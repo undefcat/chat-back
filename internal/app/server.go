@@ -60,13 +60,13 @@ func (it *Server) Run() {
 			it.clients.Delete(c)
 
 		case room := <-it.createRoom:
-			it.createChatRoom(room)
+			go it.createChatRoom(room)
 
 		case room := <-it.destroyRoom:
-			it.destroyChatRoom(room)
+			go it.destroyChatRoom(room)
 
 		case entered := <-it.Enter:
-			it.handleEnter(entered)
+			go it.handleEnter(entered)
 
 		}
 	}
