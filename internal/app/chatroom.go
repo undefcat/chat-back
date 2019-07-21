@@ -101,9 +101,9 @@ func (it *ChatRoom) broadcastUserList() {
 func (it *ChatRoom) getUserList() *payload.ChatRoomUserList {
 	userList := make([]payload.User, 0, it.Current)
 	it.Clients.Range(func(c, _ interface{}) bool {
-		name := c.(*Client).Name
+		client := c.(*Client)
 
-		user := payload.User{Name: name}
+		user := payload.User{ID: float64(client.ID), Name: client.Name}
 		userList = append(userList, user)
 		return true
 	})
@@ -128,7 +128,7 @@ func (it *ChatRoom) broadcastChatMessage(msg payload.ChatMessage) {
 
 func (it *ChatRoom) closer() {
 	for {
-		check := time.After(30*time.Second)
+		check := time.After(10*time.Second)
 
 		select {
 		case <-check:
