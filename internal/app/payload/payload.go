@@ -8,8 +8,9 @@ type SetNameRequest struct {
 }
 
 type SetNameResponse struct {
-	Type string `json:"type"`
-	OK   bool   `json:"ok"`
+	Type string  `json:"type"`
+	ID   float64 `json:"id"`
+	OK   bool    `json:"ok"`
 }
 
 // 채팅방 접속 요청
@@ -83,6 +84,7 @@ const TypeChatMessage = "chatMessage"
 type ChatMessage struct {
 	Type    string  `json:"type"`
 	ID      float64 `json:"id"`
+	UserID  float64 `json:"userID"`
 	Name    string  `json:"name"`
 	Content string  `json:"content"`
 }

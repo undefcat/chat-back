@@ -189,7 +189,7 @@ func (it *Client) handleSetName(msg []byte) error {
 	}
 
 	it.Name = setName.Name
-	it.Send <-&payload.SetNameResponse{OK: true}
+	it.Send <-&payload.SetNameResponse{ID: float64(it.ID), OK: true}
 
 	return nil
 }
@@ -228,6 +228,7 @@ func (it *Client) handleBroadcastChatMessage(msg []byte) error {
 		return err
 	}
 
+	chatMessage.UserID = float64(it.ID)
 	chatMessage.Name = it.Name
 
 	it.Broadcast <-chatMessage
