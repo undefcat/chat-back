@@ -29,11 +29,24 @@ func main() {
 		log.Fatal("Getwd: ", err)
 	}
 
-	fs := http.FileServer(http.Dir(wd+"/dist/"))
-	http.Handle("/", fs)
+	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "favicon.ico")
+	})
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWS(s, w, r)
+	})
+
+	fs := http.FileServer(http.Dir(wd+"/dist/"))
+	http.Handle("/dist/", http.StripPrefix("/dist/", fs))
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.Redirect(w, r, "/", http.StatusPermanentRedirect)
+			return
+		}
+
+		http.ServeFile(w, r, "index.html")
 	})
 
 	err = http.ListenAndServe(":8000", nil)
