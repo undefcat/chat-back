@@ -1,11 +1,13 @@
 package main
 
 import (
-	"chat-server/internal/app"
-	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"os"
+
+	"chat-server/internal/app"
+
+	"github.com/gorilla/websocket"
 )
 
 var upgrader websocket.Upgrader
