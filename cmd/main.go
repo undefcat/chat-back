@@ -1,17 +1,11 @@
 package main
 
 import (
-	"bufio"
+	"chat-server/internal/app"
+	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
-	"strings"
-
-	"chat-server/internal/app"
-	"chat-server/internal/app/payload"
-
-	"github.com/gorilla/websocket"
 )
 
 var upgrader websocket.Upgrader
@@ -28,33 +22,26 @@ func main() {
 	s = app.NewServer()
 	go s.Run()
 
-	go command()
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatal("Getwd: ", err)
+	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// 메인 페이지 이외에 바로 채팅방에는 못들어가게 한다.
-		if r.URL.Path != "/" {
-			http.Error(w, "Not Found", http.StatusNotFound)
-			return
-		}
-
-		http.ServeFile(w, r, "index.html")
-	})
-
-	http.HandleFunc("/bundle.js", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "bundle.js")
-	})
+	fs := http.FileServer(http.Dir(wd+"/dist/"))
+	http.Handle("/", fs)
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWS(s, w, r)
 	})
 
-	err := http.ListenAndServe(":8000", nil)
+	err = http.ListenAndServe(":8000", nil)
 	if err != nil {
 		log.Fatalln("ListenAndServe: ", err)
 	}
 }
 
 var sem = make(chan struct{}, 1)
+
 func serveWS(s *app.Server, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -70,25 +57,4 @@ func serveWS(s *app.Server, w http.ResponseWriter, r *http.Request) {
 	s.Login <-c
 
 	<-sem
-}
-
-func command() {
-	sc := bufio.NewScanner(os.Stdin)
-
-	for sc.Scan() {
-		t := sc.Text()
-
-		split := strings.Fields(t)
-
-		cmd := split[0]
-		split = split[1:]
-
-		switch cmd {
-		case payload.TypeCreateRoom:
-			title := split[0]
-			total, _ := strconv.Atoi(split[1])
-
-			s.CreateChatRoom(title, total)
-		}
-	}
 }
