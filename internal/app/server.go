@@ -146,6 +146,7 @@ func (it *Server) handleEnter(enter *Enter) {
 		}
 
 		if room.Current >= room.Total {
+			enter.client.Send <-&payload.JoinResponse{ID: -1, OK: false}
 			return
 		}
 
