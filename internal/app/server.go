@@ -105,6 +105,7 @@ func (it *Server) CreateChatRoom(title string, total int) {
 
 // 채팅방 고유 id
 var id = 0
+
 func (it *Server) createChatRoom(room *ChatRoom) {
 	room.ID = id
 	id++

@@ -91,16 +91,6 @@ func (it *ChatRoom) updateRoomStatus() {
 	it.Server.updateChatRoomStatus()
 }
 
-func (it *ChatRoom) handleBroadcastMessage(msg interface{}) {
-	switch msg.(type) {
-	case payload.ChatMessage:
-		it.broadcastChatMessage(msg.(payload.ChatMessage))
-
-	case payload.NoticeMessage:
-		it.broadcastNoticeMessage(msg.(payload.NoticeMessage))
-	}
-}
-
 func (it *ChatRoom) broadcastUserList() {
 	userList := it.getUserList()
 
@@ -123,6 +113,16 @@ func (it *ChatRoom) getUserList() *payload.ChatRoomUserList {
 	})
 
 	return &payload.ChatRoomUserList{UserList: userList}
+}
+
+func (it *ChatRoom) handleBroadcastMessage(msg interface{}) {
+	switch msg.(type) {
+	case payload.ChatMessage:
+		it.broadcastChatMessage(msg.(payload.ChatMessage))
+
+	case payload.NoticeMessage:
+		it.broadcastNoticeMessage(msg.(payload.NoticeMessage))
+	}
 }
 
 // 채팅 메세지 id

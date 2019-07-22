@@ -69,14 +69,8 @@ func (it *Client) request() {
 		messageType, message := getMessage(bytes.TrimSpace(m))
 
 		switch messageType {
-		case payload.TypeSetName:
-			err := it.handleSetName(message)
-			if err != nil {
-				return
-			}
-
-		case payload.TypeCreateRoom:
-			err := it.handleCreateRoom(message)
+		case payload.TypeChatMessage:
+			err := it.handleBroadcastChatMessage(message)
 			if err != nil {
 				return
 			}
@@ -87,8 +81,14 @@ func (it *Client) request() {
 				return
 			}
 
-		case payload.TypeChatMessage:
-			err := it.handleBroadcastChatMessage(message)
+		case payload.TypeSetName:
+			err := it.handleSetName(message)
+			if err != nil {
+				return
+			}
+
+		case payload.TypeCreateRoom:
+			err := it.handleCreateRoom(message)
 			if err != nil {
 				return
 			}
@@ -115,67 +115,32 @@ func getMessage(m []byte) (string, []byte) {
 	return messageType, body
 }
 
-// 서버로부터 데이터를 받아서 클라이언트로 푸쉬해준다.
-func (it *Client) listen() {
-	defer it.close()
+func (it *Client) handleBroadcastChatMessage(msg []byte) error {
+	var chatMessage payload.ChatMessage
 
-	for {
-		select {
-		case msg, ok := <-it.Send:
-			if !ok {
-				return
-			}
-
-			switch msg.(type) {
-			case *payload.SetNameResponse:
-				err := it.handleSetNamePush(msg.(*payload.SetNameResponse))
-				if err != nil {
-					return
-				}
-
-			case *payload.RoomList:
-				err := it.handleRoomListPush(msg.(*payload.RoomList))
-				if err != nil {
-					return
-				}
-
-			case *payload.ChatMessage:
-				err := it.handleSendChatMessage(msg.(*payload.ChatMessage))
-				if err != nil {
-					return
-				}
-
-			case *payload.NoticeMessage:
-				err := it.handleSendNoticeMessage(msg.(*payload.NoticeMessage))
-				if err != nil {
-					return
-				}
-
-			case *payload.JoinResponse:
-				err := it.handleJoinRoomPush(msg.(*payload.JoinResponse))
-				if err != nil {
-					return
-				}
-
-			case *payload.ChatRoomUserList:
-				err := it.handleUserListPush(msg.(*payload.ChatRoomUserList))
-				if err != nil {
-					return
-				}
-			}
-		}
-	}
-}
-
-func (it *Client) handleRoomListPush(msg *payload.RoomList) error {
-	msg.Type = payload.TypeRoomList
-
-	err := it.Conn.WriteJSON(msg)
+	err := json.Unmarshal(msg, &chatMessage)
 	if err != nil {
-		log.Println("handleRoomListPush: ", err)
+		log.Println("BroadcastChatMessage: ", err)
 		return err
 	}
 
+	chatMessage.UserID = float64(it.ID)
+	chatMessage.Name = it.Name
+
+	it.Broadcast <-chatMessage
+	return nil
+}
+
+func (it *Client) handleJoinRoom(msg []byte) error {
+	var joinRequest payload.JoinRequest
+
+	err := json.Unmarshal(msg, &joinRequest)
+	if err != nil {
+		log.Println("handleJoinRoom: ", err)
+		return err
+	}
+
+	it.Server.Enter <- &Enter{id: int(joinRequest.ID), client: it}
 	return nil
 }
 
@@ -194,17 +159,6 @@ func (it *Client) handleSetName(msg []byte) error {
 	return nil
 }
 
-func (it *Client) handleSetNamePush(msg *payload.SetNameResponse) error {
-	msg.Type = payload.TypeSetName
-
-	err := it.Conn.WriteJSON(msg)
-	if err != nil {
-		log.Println("handleSetNamePush: ", err)
-		return err
-	}
-
-	return nil
-}
 func (it *Client) handleCreateRoom(msg []byte) error {
 	var room payload.CreateRoomRequest
 
@@ -219,20 +173,61 @@ func (it *Client) handleCreateRoom(msg []byte) error {
 	return nil
 }
 
-func (it *Client) handleBroadcastChatMessage(msg []byte) error {
-	var chatMessage payload.ChatMessage
+func (it *Client) handleLeaveRoom() {
+	it.Leave <-it
+	it.Server.Login <-it
+}
 
-	err := json.Unmarshal(msg, &chatMessage)
-	if err != nil {
-		log.Println("BroadcastChatMessage: ", err)
-		return err
+// 서버로부터 데이터를 받아서 클라이언트로 푸쉬해준다.
+func (it *Client) listen() {
+	defer it.close()
+
+	for {
+		select {
+		case msg, ok := <-it.Send:
+			if !ok {
+				return
+			}
+
+			switch msg.(type) {
+			case *payload.ChatMessage:
+				err := it.handleSendChatMessage(msg.(*payload.ChatMessage))
+				if err != nil {
+					return
+				}
+
+			case *payload.RoomList:
+				err := it.handleRoomListPush(msg.(*payload.RoomList))
+				if err != nil {
+					return
+				}
+
+			case *payload.JoinResponse:
+				err := it.handleJoinRoomPush(msg.(*payload.JoinResponse))
+				if err != nil {
+					return
+				}
+
+			case *payload.NoticeMessage:
+				err := it.handleSendNoticeMessage(msg.(*payload.NoticeMessage))
+				if err != nil {
+					return
+				}
+
+			case *payload.ChatRoomUserList:
+				err := it.handleUserListPush(msg.(*payload.ChatRoomUserList))
+				if err != nil {
+					return
+				}
+
+			case *payload.SetNameResponse:
+				err := it.handleSetNamePush(msg.(*payload.SetNameResponse))
+				if err != nil {
+					return
+				}
+			}
+		}
 	}
-
-	chatMessage.UserID = float64(it.ID)
-	chatMessage.Name = it.Name
-
-	it.Broadcast <-chatMessage
-	return nil
 }
 
 func (it *Client) handleSendChatMessage(msg *payload.ChatMessage) error {
@@ -241,6 +236,30 @@ func (it *Client) handleSendChatMessage(msg *payload.ChatMessage) error {
 	err := it.Conn.WriteJSON(msg)
 	if err != nil {
 		log.Println("handleSendChatMessage: ", err)
+		return err
+	}
+
+	return nil
+}
+
+func (it *Client) handleRoomListPush(msg *payload.RoomList) error {
+	msg.Type = payload.TypeRoomList
+
+	err := it.Conn.WriteJSON(msg)
+	if err != nil {
+		log.Println("handleRoomListPush: ", err)
+		return err
+	}
+
+	return nil
+}
+
+func (it *Client) handleJoinRoomPush(msg *payload.JoinResponse) error {
+	msg.Type = payload.TypeJoinRoom
+
+	err := it.Conn.WriteJSON(msg)
+	if err != nil {
+		log.Println("handleJoinRoomPush: ", err)
 		return err
 	}
 
@@ -259,31 +278,6 @@ func (it *Client) handleSendNoticeMessage(msg *payload.NoticeMessage) error {
 	return nil
 }
 
-func (it *Client) handleJoinRoom(msg []byte) error {
-	var joinRequest payload.JoinRequest
-
-	err := json.Unmarshal(msg, &joinRequest)
-	if err != nil {
-		log.Println("handleJoinRoom: ", err)
-		return err
-	}
-
-	it.Server.Enter <- &Enter{id: int(joinRequest.ID), client: it}
-	return nil
-}
-
-func (it *Client) handleJoinRoomPush(msg *payload.JoinResponse) error {
-	msg.Type = payload.TypeJoinRoom
-
-	err := it.Conn.WriteJSON(msg)
-	if err != nil {
-		log.Println("handleJoinRoomPush: ", err)
-		return err
-	}
-
-	return nil
-}
-
 func (it *Client) handleUserListPush(msg *payload.ChatRoomUserList) error {
 	msg.Type = payload.TypeChatRoomUserList
 
@@ -296,9 +290,16 @@ func (it *Client) handleUserListPush(msg *payload.ChatRoomUserList) error {
 	return nil
 }
 
-func (it *Client) handleLeaveRoom() {
-	it.Leave <-it
-	it.Server.Login <-it
+func (it *Client) handleSetNamePush(msg *payload.SetNameResponse) error {
+	msg.Type = payload.TypeSetName
+
+	err := it.Conn.WriteJSON(msg)
+	if err != nil {
+		log.Println("handleSetNamePush: ", err)
+		return err
+	}
+
+	return nil
 }
 
 func (it *Client) close() {
