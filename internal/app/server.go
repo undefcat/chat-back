@@ -38,12 +38,12 @@ type Enter struct {
 
 func NewServer() *Server {
 	return &Server{
-		rooms:      list.New(),
-		clients:    &sync.Map{},
-		Login:      make(chan *Client),
-		Logout:     make(chan *Client),
-		Enter:      make(chan *Enter),
-		createRoom: make(chan *ChatRoom),
+		rooms:       list.New(),
+		clients:     &sync.Map{},
+		Login:       make(chan *Client),
+		Logout:      make(chan *Client),
+		Enter:       make(chan *Enter),
+		createRoom:  make(chan *ChatRoom),
 		destroyRoom: make(chan *ChatRoom),
 	}
 }

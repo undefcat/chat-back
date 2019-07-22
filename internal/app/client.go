@@ -20,7 +20,7 @@ type Client struct {
 	// 나가는 채널
 	// 서버에 접속하면 서버 로그아웃 채널을 할당해주고
 	// 채팅방에 접속하면 채팅방에서 나가는 채널을 할당해준다.
-	Leave chan<- *Client
+	Leave chan <-*Client
 
 	Conn      *websocket.Conn
 	ID        int
@@ -140,7 +140,7 @@ func (it *Client) handleJoinRoom(msg []byte) error {
 		return err
 	}
 
-	it.Server.Enter <- &Enter{id: int(joinRequest.ID), client: it}
+	it.Server.Enter <-&Enter{id: int(joinRequest.ID), client: it}
 	return nil
 }
 
@@ -303,7 +303,7 @@ func (it *Client) handleSetNamePush(msg *payload.SetNameResponse) error {
 }
 
 func (it *Client) close() {
-	it.Leave <- it
+	it.Leave <-it
 	err := it.Conn.Close()
 	if err != nil {
 		log.Println("client close: ", err)
