@@ -75,6 +75,12 @@ func (it *Client) request() {
 				return
 			}
 
+		case payload.TypeWhisperMessage:
+			err := it.handleWhisperMessage(message)
+			if err != nil {
+				return
+			}
+
 		case payload.TypeJoinRoom:
 			err := it.handleJoinRoom(message)
 			if err != nil {
@@ -128,6 +134,21 @@ func (it *Client) handleBroadcastChatMessage(msg []byte) error {
 	chatMessage.Name = it.Name
 
 	it.Broadcast <-chatMessage
+	return nil
+}
+
+func (it *Client) handleWhisperMessage(msg []byte) error {
+	var whisperMessage payload.WhisperMessage
+
+	err := json.Unmarshal(msg, &whisperMessage)
+	if err != nil {
+		log.Println("handleWhisperMessage: ", err)
+		return err
+	}
+
+	whisperMessage.FromID = float64(it.ID)
+
+	it.Broadcast <-whisperMessage
 	return nil
 }
 
@@ -196,6 +217,12 @@ func (it *Client) listen() {
 					return
 				}
 
+			case *payload.WhisperMessage:
+				err := it.handleSendWhisperMessage(msg.(*payload.WhisperMessage))
+				if err != nil {
+					return
+				}
+
 			case *payload.RoomList:
 				err := it.handleRoomListPush(msg.(*payload.RoomList))
 				if err != nil {
@@ -236,6 +263,18 @@ func (it *Client) handleSendChatMessage(msg *payload.ChatMessage) error {
 	err := it.Conn.WriteJSON(msg)
 	if err != nil {
 		log.Println("handleSendChatMessage: ", err)
+		return err
+	}
+
+	return nil
+}
+
+func (it *Client) handleSendWhisperMessage(msg *payload.WhisperMessage) error {
+	msg.Type = payload.TypeWhisperMessage
+
+	err := it.Conn.WriteJSON(msg)
+	if err != nil {
+		log.Println("handleSendWhisperMessage: ", err)
 		return err
 	}
 

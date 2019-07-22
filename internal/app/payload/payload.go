@@ -97,3 +97,14 @@ type NoticeMessage struct {
 	NoticeType string  `json:"noticeType"`
 	Content    string  `json:"content"`
 }
+
+// 귓속말 메세지
+const TypeWhisperMessage = "whisperMessage"
+
+type WhisperMessage struct {
+	Type     string  `json:"type"`
+	ID       float64 `json:"id"`
+	FromID   float64 `json:"fromID"`
+	ToID     float64 `json:"toID"`
+	Content  string  `json:"content"`
+}

@@ -49,7 +49,7 @@ func main() {
 		http.ServeFile(w, r, "index.html")
 	})
 
-	err = http.ListenAndServe(":8000", nil)
+	err = http.ListenAndServe(":80", nil)
 	if err != nil {
 		log.Fatalln("ListenAndServe: ", err)
 	}

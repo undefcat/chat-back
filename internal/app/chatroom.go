@@ -76,7 +76,9 @@ func (it *ChatRoom) In(client *Client) {
 
 func (it *ChatRoom) Out(client *Client) {
 	it.Clients.Delete(client)
-	it.Current--
+	if it.Current > 0 {
+		it.Current--
+	}
 
 	it.Broadcast <-payload.NoticeMessage{
 		NoticeType: "leave",
@@ -122,6 +124,9 @@ func (it *ChatRoom) handleBroadcastMessage(msg interface{}) {
 
 	case payload.NoticeMessage:
 		it.broadcastNoticeMessage(msg.(payload.NoticeMessage))
+
+	case payload.WhisperMessage:
+		it.broadcastWhisperMessage(msg.(payload.WhisperMessage))
 	}
 }
 
@@ -147,6 +152,20 @@ func (it *ChatRoom) broadcastNoticeMessage(msg payload.NoticeMessage) {
 	it.Clients.Range(func(c, _ interface{}) bool {
 		client := c.(*Client)
 		client.Send <-&msg
+
+		return true
+	})
+}
+
+func (it *ChatRoom) broadcastWhisperMessage(msg payload.WhisperMessage) {
+	msg.ID = float64(chatID)
+	chatID++
+
+	it.Clients.Range(func(c, _ interface{}) bool {
+		client := c.(*Client)
+		if client.ID == int(msg.ToID) || client.ID == int(msg.FromID) {
+			client.Send <-&msg
+		}
 
 		return true
 	})
