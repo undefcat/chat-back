@@ -13,19 +13,22 @@ type ChatRoom struct {
 	Title     string
 	Total     int
 	Current   int
+	RoomMaker int
 	Server    *Server
 	Enter     chan *Client
 	Leave     chan *Client
 	Clients   *sync.Map
+	Banned    *sync.Map
 	Broadcast chan interface{}
 	Closed    chan struct{}
 }
 
-func NewChatRoom(title string, total int, server *Server) *ChatRoom {
+func NewChatRoom(c *Client, s *Server, title string, total int) *ChatRoom {
 	return &ChatRoom{
 		Title:     title,
 		Total:     total,
-		Server:    server,
+		RoomMaker: c.ID,
+		Server:    s,
 		Enter:     make(chan *Client),
 		Leave:     make(chan *Client),
 		Clients:   &sync.Map{},
@@ -40,7 +43,7 @@ func (it *ChatRoom) Run() {
 	for {
 		select {
 		case msg := <-it.Broadcast:
-			go it.handleBroadcastMessage(msg)
+			go it.handleBroadcast(msg)
 
 		case enter := <-it.Enter:
 			go it.In(enter)
@@ -117,7 +120,7 @@ func (it *ChatRoom) getUserList() *payload.ChatRoomUserList {
 	return &payload.ChatRoomUserList{UserList: userList}
 }
 
-func (it *ChatRoom) handleBroadcastMessage(msg interface{}) {
+func (it *ChatRoom) handleBroadcast(msg interface{}) {
 	switch msg.(type) {
 	case payload.ChatMessage:
 		it.broadcastChatMessage(msg.(payload.ChatMessage))
@@ -127,6 +130,9 @@ func (it *ChatRoom) handleBroadcastMessage(msg interface{}) {
 
 	case payload.WhisperMessage:
 		it.broadcastWhisperMessage(msg.(payload.WhisperMessage))
+
+	case payload.BanUser:
+		it.banUser(msg.(payload.BanUser))
 	}
 }
 
@@ -165,6 +171,23 @@ func (it *ChatRoom) broadcastWhisperMessage(msg payload.WhisperMessage) {
 		client := c.(*Client)
 		if client.ID == int(msg.ToID) || client.ID == int(msg.FromID) {
 			client.Send <-&msg
+		}
+
+		return true
+	})
+}
+
+func (it *ChatRoom) banUser(msg payload.BanUser) {
+	if it.RoomMaker != int(msg.ID) {
+		return
+	}
+
+	it.Clients.Range(func(c, _ interface{}) bool {
+		client := c.(*Client)
+		if client.ID == int(msg.BanID) {
+			client.Send <-&msg
+
+			return false
 		}
 
 		return true

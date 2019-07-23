@@ -102,6 +102,11 @@ func (it *Client) request() {
 		case payload.TypeLeaveRoom:
 			it.handleLeaveRoom()
 
+		case payload.TypeBanUser:
+			err := it.handleBanUser(message)
+			if err != nil {
+				return
+			}
 		}
 	}
 }
@@ -189,7 +194,7 @@ func (it *Client) handleCreateRoom(msg []byte) error {
 		return err
 	}
 
-	it.Server.CreateChatRoom(room.Title, int(room.Total))
+	it.Server.CreateChatRoom(it, room.Title, int(room.Total))
 
 	return nil
 }
@@ -197,6 +202,22 @@ func (it *Client) handleCreateRoom(msg []byte) error {
 func (it *Client) handleLeaveRoom() {
 	it.Leave <-it
 	it.Server.Login <-it
+}
+
+func (it *Client) handleBanUser(msg []byte) error {
+	var banUser payload.BanUser
+
+	err := json.Unmarshal(msg, &banUser)
+	if err != nil {
+		log.Println("handleBanUser: ", err)
+		return err
+	}
+
+	// 타입 변환 계속 왔다갔다 한다.
+	banUser.ID = float64(it.ID)
+
+	it.Broadcast <-banUser
+	return nil
 }
 
 // 서버로부터 데이터를 받아서 클라이언트로 푸쉬해준다.
@@ -249,6 +270,12 @@ func (it *Client) listen() {
 
 			case *payload.SetNameResponse:
 				err := it.handleSetNamePush(msg.(*payload.SetNameResponse))
+				if err != nil {
+					return
+				}
+
+			case *payload.BanUser:
+				err := it.handleBanUserPush(msg.(*payload.BanUser))
 				if err != nil {
 					return
 				}
@@ -335,6 +362,18 @@ func (it *Client) handleSetNamePush(msg *payload.SetNameResponse) error {
 	err := it.Conn.WriteJSON(msg)
 	if err != nil {
 		log.Println("handleSetNamePush: ", err)
+		return err
+	}
+
+	return nil
+}
+
+func (it *Client) handleBanUserPush(msg *payload.BanUser) error {
+	msg.Type = payload.TypeBanUser
+
+	err := it.Conn.WriteJSON(msg)
+	if err != nil {
+		log.Println("handleBanUserPush: ", err)
 		return err
 	}
 

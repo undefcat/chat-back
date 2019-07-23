@@ -50,10 +50,11 @@ type CreateRoomResponse struct {
 
 // 채팅방 정보
 type ChatRoom struct {
-	ID      float64 `json:"id"`
-	Title   string  `json:"title"`
-	Total   float64 `json:"total"`
-	Current float64 `json:"current"`
+	ID        float64 `json:"id"`
+	Title     string  `json:"title"`
+	Total     float64 `json:"total"`
+	Current   float64 `json:"current"`
+	RoomMaker float64 `json:"roomMaker"`
 }
 
 // 채팅방 리스트
@@ -102,9 +103,18 @@ type NoticeMessage struct {
 const TypeWhisperMessage = "whisperMessage"
 
 type WhisperMessage struct {
-	Type     string  `json:"type"`
-	ID       float64 `json:"id"`
-	FromID   float64 `json:"fromID"`
-	ToID     float64 `json:"toID"`
-	Content  string  `json:"content"`
+	Type    string  `json:"type"`
+	ID      float64 `json:"id"`
+	FromID  float64 `json:"fromID"`
+	ToID    float64 `json:"toID"`
+	Content string  `json:"content"`
+}
+
+// 강퇴
+const TypeBanUser = "banUser"
+
+type BanUser struct {
+	Type  string  `json:"type"`
+	ID    float64 `json:"id"`
+	BanID float64 `json:"banID"`
 }

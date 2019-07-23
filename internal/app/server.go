@@ -89,17 +89,18 @@ func chatRoomToPayLoad(cr *ChatRoom) *payload.ChatRoom {
 		Title:   cr.Title,
 		Total:   float64(cr.Total),
 		Current: float64(cr.Current),
+		RoomMaker: float64(cr.RoomMaker),
 	}
 
 	return ret
 }
 
-func (it *Server) CreateChatRoom(title string, total int) {
+func (it *Server) CreateChatRoom(client *Client, title string, total int) {
 	if total > 16 {
 		total = 16
 	}
 
-	room := NewChatRoom(title, total, it)
+	room := NewChatRoom(client, it, title, total)
 	it.createRoom <-room
 }
 
