@@ -29,6 +29,13 @@ func main() {
 		log.Fatal("Getwd: ", err)
 	}
 
+	logFile, err := os.Create("chat-server.log")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.SetOutput(logFile)
+
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "favicon.ico")
 	})
