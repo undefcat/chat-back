@@ -8,11 +8,13 @@ import (
 )
 
 type Server struct {
+	roomsLocker sync.RWMutex
+
 	// 채팅방 리스트
 	rooms *list.List
 
 	// 로비에 있는 클라이언트들
-	clients *sync.Map
+	clients sync.Map
 
 	// 로그인 채널
 	Login chan *Client
@@ -39,7 +41,6 @@ type Enter struct {
 func NewServer() *Server {
 	return &Server{
 		rooms:       list.New(),
-		clients:     &sync.Map{},
 		Login:       make(chan *Client),
 		Logout:      make(chan *Client),
 		Enter:       make(chan *Enter),
@@ -54,7 +55,7 @@ func (it *Server) Run() {
 		case c := <-it.Login:
 			it.clients.Store(c, true)
 			c.Leave = it.Logout
-			c.Send <- it.getRoomList()
+			c.Send <-it.getRoomList()
 
 		case c := <-it.Logout:
 			it.clients.Delete(c)
@@ -72,23 +73,28 @@ func (it *Server) Run() {
 	}
 }
 
-func (it *Server) getRoomList() *payload.RoomList {
-	rooms := make([]interface{}, 0, it.rooms.Len())
+func (it *Server) getRoomList() payload.RoomList {
+	it.roomsLocker.RLock()
+	defer it.roomsLocker.RUnlock()
 
+	rooms := make([]interface{}, 0, it.rooms.Len())
 	for e := it.rooms.Front(); e != nil; e = e.Next() {
 		cr := e.Value.(*ChatRoom)
 		rooms = append(rooms, chatRoomToPayLoad(cr))
 	}
 
-	return &payload.RoomList{Rooms: rooms}
+	return payload.RoomList{
+		Type:  payload.TypeRoomList,
+		Rooms: rooms,
+	}
 }
 
-func chatRoomToPayLoad(cr *ChatRoom) *payload.ChatRoom {
-	ret := &payload.ChatRoom{
-		ID:      float64(cr.ID),
-		Title:   cr.Title,
-		Total:   float64(cr.Total),
-		Current: float64(cr.Current),
+func chatRoomToPayLoad(cr *ChatRoom) payload.ChatRoom {
+	ret := payload.ChatRoom{
+		ID:        float64(cr.ID),
+		Title:     cr.Title,
+		Total:     float64(cr.Total()),
+		Current:   float64(cr.Current()),
 		RoomMaker: float64(cr.RoomMaker),
 	}
 
@@ -104,14 +110,13 @@ func (it *Server) CreateChatRoom(client *Client, title string, total int) {
 	it.createRoom <-room
 }
 
-// 채팅방 고유 id
-var id = 0
-
 func (it *Server) createChatRoom(room *ChatRoom) {
-	room.ID = id
-	id++
+	it.roomsLocker.Lock()
 
 	it.rooms.PushBack(room)
+
+	it.roomsLocker.Unlock()
+
 	go room.Run()
 
 	it.updateChatRoomStatus()
@@ -121,12 +126,13 @@ func (it *Server) updateChatRoomStatus() {
 	roomList := it.getRoomList()
 
 	it.clients.Range(func(k, v interface{}) bool {
-		k.(*Client).Send <- roomList
+		k.(*Client).Send <-roomList
 		return true
 	})
 }
 
 func (it *Server) destroyChatRoom(room *ChatRoom) {
+	it.roomsLocker.Lock()
 	for e := it.rooms.Front(); e != nil; e = e.Next() {
 		r := e.Value.(*ChatRoom)
 		if r != room {
@@ -134,9 +140,11 @@ func (it *Server) destroyChatRoom(room *ChatRoom) {
 		}
 
 		it.rooms.Remove(e)
-		it.updateChatRoomStatus()
-		return
+		break
 	}
+	it.roomsLocker.Unlock()
+
+	it.updateChatRoomStatus()
 }
 
 func (it *Server) handleEnter(enter *Enter) {
@@ -146,8 +154,12 @@ func (it *Server) handleEnter(enter *Enter) {
 			continue
 		}
 
-		if room.Current >= room.Total {
-			enter.client.Send <-&payload.JoinResponse{ID: -1, OK: false}
+		if room.Current() >= room.Total() {
+			enter.client.Send <-payload.JoinResponse{
+				Type: payload.TypeJoinRoom,
+				ID:   -1,
+				OK:   false,
+			}
 			return
 		}
 

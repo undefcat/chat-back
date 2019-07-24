@@ -30,18 +30,28 @@ type Client struct {
 	Broadcast chan interface{}
 }
 
-var clientID = 0
+var clientIDGenerator chan int
+
+func init() {
+	clientIDGenerator = make(chan int)
+	id := 0
+
+	go func() {
+		for {
+			clientIDGenerator <-id
+			id++
+		}
+	}()
+}
 
 func NewClient(server *Server, conn *websocket.Conn, ip string) *Client {
 	c := &Client{
 		Server: server,
 		Conn:   conn,
-		ID:     clientID,
+		ID:     <-clientIDGenerator,
 		IP:     ip,
 		Send:   make(chan interface{}),
 	}
-
-	clientID++
 
 	go c.request()
 	go c.listen()
@@ -180,7 +190,11 @@ func (it *Client) handleSetName(msg []byte) error {
 	}
 
 	it.Name = setName.Name
-	it.Send <-&payload.SetNameResponse{ID: float64(it.ID), OK: true}
+	it.Send <-payload.SetNameResponse{
+		Type: payload.TypeSetName,
+		ID:   float64(it.ID),
+		OK:   true,
+	}
 
 	return nil
 }
@@ -232,50 +246,50 @@ func (it *Client) listen() {
 			}
 
 			switch msg.(type) {
-			case *payload.ChatMessage:
-				err := it.handleSendChatMessage(msg.(*payload.ChatMessage))
+			case payload.ChatMessage:
+				err := it.handleSendChatMessage(msg.(payload.ChatMessage))
 				if err != nil {
 					return
 				}
 
-			case *payload.WhisperMessage:
-				err := it.handleSendWhisperMessage(msg.(*payload.WhisperMessage))
+			case payload.WhisperMessage:
+				err := it.handleSendWhisperMessage(msg.(payload.WhisperMessage))
 				if err != nil {
 					return
 				}
 
-			case *payload.RoomList:
-				err := it.handleRoomListPush(msg.(*payload.RoomList))
+			case payload.RoomList:
+				err := it.handleRoomListPush(msg.(payload.RoomList))
 				if err != nil {
 					return
 				}
 
-			case *payload.JoinResponse:
-				err := it.handleJoinRoomPush(msg.(*payload.JoinResponse))
+			case payload.JoinResponse:
+				err := it.handleJoinRoomPush(msg.(payload.JoinResponse))
 				if err != nil {
 					return
 				}
 
-			case *payload.NoticeMessage:
-				err := it.handleSendNoticeMessage(msg.(*payload.NoticeMessage))
+			case payload.NoticeMessage:
+				err := it.handleSendNoticeMessage(msg.(payload.NoticeMessage))
 				if err != nil {
 					return
 				}
 
-			case *payload.ChatRoomUserList:
-				err := it.handleUserListPush(msg.(*payload.ChatRoomUserList))
+			case payload.ChatRoomUserList:
+				err := it.handleUserListPush(msg.(payload.ChatRoomUserList))
 				if err != nil {
 					return
 				}
 
-			case *payload.SetNameResponse:
-				err := it.handleSetNamePush(msg.(*payload.SetNameResponse))
+			case payload.SetNameResponse:
+				err := it.handleSetNamePush(msg.(payload.SetNameResponse))
 				if err != nil {
 					return
 				}
 
-			case *payload.BanUser:
-				err := it.handleBanUserPush(msg.(*payload.BanUser))
+			case payload.BanUser:
+				err := it.handleBanUserPush(msg.(payload.BanUser))
 				if err != nil {
 					return
 				}
@@ -284,9 +298,7 @@ func (it *Client) listen() {
 	}
 }
 
-func (it *Client) handleSendChatMessage(msg *payload.ChatMessage) error {
-	msg.Type = payload.TypeChatMessage
-
+func (it *Client) handleSendChatMessage(msg payload.ChatMessage) error {
 	err := it.Conn.WriteJSON(msg)
 	if err != nil {
 		log.Println("handleSendChatMessage: ", err)
@@ -296,9 +308,7 @@ func (it *Client) handleSendChatMessage(msg *payload.ChatMessage) error {
 	return nil
 }
 
-func (it *Client) handleSendWhisperMessage(msg *payload.WhisperMessage) error {
-	msg.Type = payload.TypeWhisperMessage
-
+func (it *Client) handleSendWhisperMessage(msg payload.WhisperMessage) error {
 	err := it.Conn.WriteJSON(msg)
 	if err != nil {
 		log.Println("handleSendWhisperMessage: ", err)
@@ -308,9 +318,7 @@ func (it *Client) handleSendWhisperMessage(msg *payload.WhisperMessage) error {
 	return nil
 }
 
-func (it *Client) handleRoomListPush(msg *payload.RoomList) error {
-	msg.Type = payload.TypeRoomList
-
+func (it *Client) handleRoomListPush(msg payload.RoomList) error {
 	err := it.Conn.WriteJSON(msg)
 	if err != nil {
 		log.Println("handleRoomListPush: ", err)
@@ -320,9 +328,7 @@ func (it *Client) handleRoomListPush(msg *payload.RoomList) error {
 	return nil
 }
 
-func (it *Client) handleJoinRoomPush(msg *payload.JoinResponse) error {
-	msg.Type = payload.TypeJoinRoom
-
+func (it *Client) handleJoinRoomPush(msg payload.JoinResponse) error {
 	err := it.Conn.WriteJSON(msg)
 	if err != nil {
 		log.Println("handleJoinRoomPush: ", err)
@@ -332,9 +338,7 @@ func (it *Client) handleJoinRoomPush(msg *payload.JoinResponse) error {
 	return nil
 }
 
-func (it *Client) handleSendNoticeMessage(msg *payload.NoticeMessage) error {
-	msg.Type = payload.TypeNoticeMessage
-
+func (it *Client) handleSendNoticeMessage(msg payload.NoticeMessage) error {
 	err := it.Conn.WriteJSON(msg)
 	if err != nil {
 		log.Println("handleSendNoticeMessage: ", err)
@@ -344,9 +348,7 @@ func (it *Client) handleSendNoticeMessage(msg *payload.NoticeMessage) error {
 	return nil
 }
 
-func (it *Client) handleUserListPush(msg *payload.ChatRoomUserList) error {
-	msg.Type = payload.TypeChatRoomUserList
-
+func (it *Client) handleUserListPush(msg payload.ChatRoomUserList) error {
 	err := it.Conn.WriteJSON(msg)
 	if err != nil {
 		log.Println("handleUserListPush: ", err)
@@ -356,9 +358,7 @@ func (it *Client) handleUserListPush(msg *payload.ChatRoomUserList) error {
 	return nil
 }
 
-func (it *Client) handleSetNamePush(msg *payload.SetNameResponse) error {
-	msg.Type = payload.TypeSetName
-
+func (it *Client) handleSetNamePush(msg payload.SetNameResponse) error {
 	err := it.Conn.WriteJSON(msg)
 	if err != nil {
 		log.Println("handleSetNamePush: ", err)
@@ -368,9 +368,7 @@ func (it *Client) handleSetNamePush(msg *payload.SetNameResponse) error {
 	return nil
 }
 
-func (it *Client) handleBanUserPush(msg *payload.BanUser) error {
-	msg.Type = payload.TypeBanUser
-
+func (it *Client) handleBanUserPush(msg payload.BanUser) error {
 	err := it.Conn.WriteJSON(msg)
 	if err != nil {
 		log.Println("handleBanUserPush: ", err)

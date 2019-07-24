@@ -62,8 +62,6 @@ func main() {
 	}
 }
 
-var sem = make(chan struct{}, 1)
-
 func serveWS(s *app.Server, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -71,12 +69,6 @@ func serveWS(s *app.Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 클라이언트마다 id값은 고유하게 할당되어야 하므로
-	// 크기 1짜리 semaphore 사용
-	sem <-struct{}{}
-
 	c := app.NewClient(s, conn, r.RemoteAddr)
 	s.Login <-c
-
-	<-sem
 }
