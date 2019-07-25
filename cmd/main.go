@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 	"os"
@@ -20,7 +21,15 @@ func init() {
 
 var s *app.Server
 
+var port string
+
+func init() {
+	flag.StringVar(&port, "port", "8000", "port로 서버를 실행한다.")
+}
+
 func main() {
+	flag.Parse()
+
 	s = app.NewServer()
 	go s.Run()
 
@@ -56,7 +65,7 @@ func main() {
 		http.ServeFile(w, r, "index.html")
 	})
 
-	err = http.ListenAndServe(":80", nil)
+	err = http.ListenAndServe(":"+port, nil)
 	if err != nil {
 		log.Fatalln("ListenAndServe: ", err)
 	}
