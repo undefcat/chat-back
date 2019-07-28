@@ -2,7 +2,7 @@
 
 FROM golang:latest AS builder
 
-MAINTAINER "undefcat <undefcat@gmail.com>"
+LABEL maintainer="undefcat <undefcat@gmail.com>"
 
 WORKDIR /app
 
@@ -19,7 +19,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o main
 
 FROM scratch
 
-MAINTAINER "undefcat <undefcat@gmail.com>"
+LABEL maintainer="undefcat <undefcat@gmail.com>"
 
 WORKDIR /app
 
