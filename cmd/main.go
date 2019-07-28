@@ -33,11 +33,6 @@ func main() {
 	s = app.NewServer()
 	go s.Run()
 
-	wd, err := os.Getwd()
-	if err != nil {
-		log.Fatal("Getwd: ", err)
-	}
-
 	logFile, err := os.Create("chat-server.log")
 	if err != nil {
 		log.Fatal(err)

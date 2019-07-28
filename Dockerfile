@@ -13,7 +13,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o main cmd/main.go
 
 # run stage
 
@@ -21,10 +21,12 @@ FROM scratch
 
 MAINTAINER "undefcat <undefcat@gmail.com>"
 
-COPY --from=builder /app/main /app/
+WORKDIR /app
+
+COPY --from=builder /app/main main
 
 EXPOSE 8000
 
-ENTRYPOINT ["/app/main"]
+ENTRYPOINT ["./main"]
 
 CMD ["-port=8000"]
