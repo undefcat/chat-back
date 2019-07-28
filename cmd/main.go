@@ -33,7 +33,7 @@ func main() {
 	s = app.NewServer()
 	go s.Run()
 
-	logFile, err := os.Create("chat-server.log")
+	logFile, err := os.Create("/app/log/chat-server.log")
 	if err != nil {
 		log.Fatal(err)
 	}
